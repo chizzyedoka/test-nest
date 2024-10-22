@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Home, Award, Settings, Sparkle, Beaker } from "lucide-react";
+import { Home, Award, Settings, Beaker, LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -44,7 +44,7 @@ export function SidebarItem({
   text,
 }: {
   href: string;
-  icon: React.ElementType;
+  icon: LucideIcon;
   text: string;
 }) {
   const pathname = usePathname();

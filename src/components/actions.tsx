@@ -9,10 +9,18 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Zap, Target, Terminal, Book, Rocket, Brain } from "lucide-react";
+import {
+  Zap,
+  Target,
+  Terminal,
+  Book,
+  Rocket,
+  Brain,
+  LucideIcon,
+} from "lucide-react";
 
 interface ActionItem {
-  icon: React.ElementType;
+  icon: LucideIcon;
   label: string;
   href: string;
   color: string;
