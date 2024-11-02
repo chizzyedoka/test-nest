@@ -33,12 +33,12 @@ const actionItems: ActionItem[] = [
     href: "/dashboard/setup-gpu",
     color: "from-yellow-500 to-orange-500",
   },
-  {
-    icon: Target,
-    label: "Connect API",
-    href: "/dashboard/connect-openai",
-    color: "from-green-500 to-emerald-500",
-  },
+  // {
+  //   icon: Target,
+  //   label: "Connect API",
+  //   href: "/dashboard/connect-openai",
+  //   color: "from-green-500 to-emerald-500",
+  // },
   {
     icon: Terminal,
     label: "Setup CLI",
@@ -51,12 +51,12 @@ const actionItems: ActionItem[] = [
     href: "/dashboard/tutorials",
     color: "from-indigo-500 to-purple-500",
   },
-  {
-    icon: Rocket,
-    label: "Launch Lab",
-    href: "/dashboard/launch-lab",
-    color: "from-pink-500 to-rose-500",
-  },
+  // {
+  //   icon: Rocket,
+  //   label: "Launch Lab",
+  //   href: "/dashboard/launch-lab",
+  //   color: "from-pink-500 to-rose-500",
+  // },
   {
     icon: Brain,
     label: "AI Insights",
@@ -89,7 +89,7 @@ export const Actions: React.FC = () => {
             />
           )}
         </AnimatePresence>
-        <CardHeader className='p-4 sm:p-6'>
+        <CardHeader className='p-4 sm:px-2 sm:p-6'>
           <CardTitle className='text-lg sm:text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent'>
             Quick Actions
           </CardTitle>
@@ -97,16 +97,16 @@ export const Actions: React.FC = () => {
             Get started with prompt mining
           </CardDescription>
         </CardHeader>
-        <CardContent className='flex flex-col md:grid md:grid-cols-3 gap-2 sm:gap-4 p-4 sm:p-6'>
+        <CardContent className='flex flex-col md:grid md:grid-cols-3 gap-2 sm:gap-2 p-4 sm:px-2 sm:p-6'>
           {actionItems.map((action) => (
             <Button
               key={action.label}
               asChild
               variant='outline'
-              className='h-20 sm:h-24 md:h-28 w-full flex flex-row md:flex-col items-center justify-start md:justify-center space-x-4 md:space-x-0 md:space-y-2 hover:bg-accent relative overflow-hidden group'>
+              className='h-20 sm:h-24 md:h-28 w-full flex flex-row md:flex-col items-center justify-start md:justify-center space-x-4 md:space-x-0 md:space-y-2 hover:bg-accent relative overflow-hidden group px-2  rounded-lg'>
               <Link
                 href={action.href}
-                className='w-full h-full flex flex-row md:flex-col items-center justify-start md:justify-center'>
+                className='w-full h-full flex flex-row md:flex-col items-center justify-start md:justify-center px-2'>
                 <motion.div
                   className={`bg-gradient-to-r ${action.color} rounded-full p-1 sm:p-2 md:p-3`}
                   whileHover={{ scale: 1.1 }}
@@ -117,7 +117,7 @@ export const Actions: React.FC = () => {
                   }}>
                   <action.icon className='h-5 w-5 sm:h-6 sm:w-6 md:h-7 md:w-7 text-white' />
                 </motion.div>
-                <span className='text-xs sm:text-sm md:text-base font-medium text-left md:text-center group-hover:text-foreground transition-colors duration-200 ml-4 md:ml-0 md:mt-2'>
+                <span className='text-xs sm:text-sm font-medium text-left md:text-center group-hover:text-foreground transition-colors duration-200 ml-4 md:ml-0 md:mt-2'>
                   {action.label}
                 </span>
               </Link>

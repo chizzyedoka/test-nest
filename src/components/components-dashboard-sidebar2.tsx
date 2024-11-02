@@ -9,10 +9,10 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 
 const sidebarItems = [
-  { href: "/dashboard", icon: Home, text: "Dashboard" },
-  { href: "/labs", icon: FlaskConical, text: "Labs" },
-  { href: "/leaderboard", icon: Award, text: "Leaderboard" },
-  { href: "/settings", icon: Settings, text: "Settings" },
+  { href: "/dashboard", icon: Home, text: "Dashboard", isDisabled: false },
+  { href: "/labs", icon: FlaskConical, text: "Labs", isDisabled: false },
+  { href: "/leaderboard", icon: Award, text: "Leaderboard", isDisabled: false },
+  { href: "/settings", icon: Settings, text: "Settings", isDisabled: true },
 ];
 
 export function Sidebar() {
@@ -45,36 +45,52 @@ export function SidebarItem({
   href,
   icon: Icon,
   text,
+  isDisabled,
 }: {
   href: string;
   icon: LucideIcon;
   text: string;
+  isDisabled: boolean;
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <li>
-      <Link href={href} passHref>
+      {isDisabled ? (
         <Button
+          disabled
+          variant='ghost'
+          className={cn(
+            "w-full justify-start text-left font-normal relative overflow-hidden opacity-50 cursor-not-allowed",
+            "hover:bg-accent hover:text-accent-foreground transition-colors duration-200"
+          )}>
+          <Icon className='mr-3 h-4 w-4' />
+          {text}
+        </Button>
+      ) : (
+        <Button
+          asChild
           variant='ghost'
           className={cn(
             "w-full justify-start text-left font-normal relative overflow-hidden",
             "hover:bg-accent hover:text-accent-foreground transition-colors duration-200",
             isActive && "bg-accent text-accent-foreground font-medium"
           )}>
-          <Icon className='mr-3 h-4 w-4' />
-          {text}
-          {isActive && (
-            <motion.div
-              className='absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-20'
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.2 }}
-              transition={{ duration: 0.3 }}
-            />
-          )}
+          <Link href={href} passHref>
+            <Icon className='mr-3 h-4 w-4' />
+            {text}
+            {isActive && (
+              <motion.div
+                className='absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-20'
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.2 }}
+                transition={{ duration: 0.3 }}
+              />
+            )}
+          </Link>
         </Button>
-      </Link>
+      )}
     </li>
   );
 }

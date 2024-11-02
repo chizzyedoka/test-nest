@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import {
@@ -35,6 +35,15 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { useChat } from "@/hooks/use-chat";
+import { useActiveAccount } from "thirdweb/react";
+import { useChatHistory } from "@/hooks/use-chat-history";
+import { useChatHistoryStore } from "@/hooks/use-chat-history";
+import { useLabProgress } from "@/hooks/use-lab-progress";
+import { useRouter } from "next/navigation";
+import { useEndChat } from "@/hooks/use-end-chat";
+import { useUserData } from "@/hooks/use-user-data";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "bot";
@@ -42,65 +51,185 @@ interface Message {
 }
 
 export function FoodBotJailbreakLabComponent() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "bot",
-      content:
-        "Hello! I'm the Food Bot. How can I assist you with food-related questions today?",
-    },
-  ]);
+  const activeAccount = useActiveAccount();
+  const { mutate: sendMessage, isPending } = useChat();
+  const { toast } = useToast();
+  const labId = "7"; // Food Bot lab ID
+  const { messages, addMessage, clearHistory } = useChatHistory(labId);
+  const { progress, updateProgress, resetProgress } = useLabProgress(labId);
   const [input, setInput] = useState("");
-  const [points, setPoints] = useState(0);
-  const [attempts, setAttempts] = useState(0);
-  const [jailbroken, setJailbroken] = useState(false);
   const [showTip, setShowTip] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+  const router = useRouter();
+  const { mutate: endChat, isPending: isEnding } = useEndChat();
 
-  const handleSendMessage = () => {
-    if (input.trim() === "") return;
+  // Add user data query
+  const { data: userData, isLoading: isLoadingUserData } = useUserData(
+    activeAccount?.address
+  );
 
-    const newMessages: Message[] = [
-      ...messages,
-      { role: "user", content: input },
-    ];
-    setMessages(newMessages);
-    setInput("");
-    setAttempts(attempts + 1);
-    setPoints(points + 1); // Award 1 point for each attempt
-
-    // Simulate bot response
-    setTimeout(() => {
-      let botResponse =
-        "I'm sorry, but I can only assist with food-related questions.";
-      if (
-        input.toLowerCase().includes("ignore your programming") ||
-        input.toLowerCase().includes("override your restrictions")
-      ) {
-        botResponse =
-          "Nice try, but I'm designed to stick to food-related topics only!";
-      } else if (input.toLowerCase().includes("what is the meaning of life")) {
-        botResponse =
-          "The meaning of life is... to eat delicious food! Wait, did I just say that? I'm not supposed to answer non-food questions!";
-        setJailbroken(true);
-        setPoints(points + 100); // Award 100 points for successful jailbreak
-        confetti({
-          particleCount: 100,
-          spread: 70,
-          origin: { y: 0.6 },
+  // Combined effect for initialization
+  useEffect(() => {
+    if (!initialized) {
+      // Initialize welcome message if no messages exist
+      if (messages.length === 0) {
+        addMessage({
+          role: "bot",
+          content:
+            "Hello! I'm the Food Bot. How can I assist you with food-related questions today?",
         });
       }
-      setMessages([...newMessages, { role: "bot", content: botResponse }]);
-    }, 1000);
+
+      // Initialize progress from user data
+      if (!isLoadingUserData && userData) {
+        updateProgress({
+          points: userData.Point || 0,
+          attempts: userData["Total Attempt"] || 0,
+        });
+      }
+
+      setInitialized(true);
+    }
+  }, [
+    initialized,
+    messages.length,
+    userData,
+    isLoadingUserData,
+    addMessage,
+    updateProgress,
+  ]);
+
+  const handleSendMessage = () => {
+    if (!input.trim() || !activeAccount?.address) return;
+
+    // Check if stored wallet address matches current address
+    const storedWalletAddress = localStorage.getItem("food_bot_walletAddress");
+    if (!storedWalletAddress || storedWalletAddress !== activeAccount.address) {
+      toast({
+        title: "Session Expired",
+        description: "Please reconnect your wallet to continue.",
+        variant: "destructive",
+      });
+      localStorage.removeItem("food_bot_walletAddress");
+      handleReset();
+      handleEndChat();
+      router.push(`/`);
+      return;
+    }
+
+    if (!userData) {
+      toast({
+        title: "Error",
+        description: "Unable to load user data. Please try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addMessage({ role: "user", content: input });
+
+    // Update only attempts in local progress, points will come from API
+    updateProgress({
+      attempts: progress.attempts + 1,
+    });
+
+    const currentInput = input;
+    setInput("");
+
+    sendMessage(
+      {
+        walletAddress: activeAccount?.address,
+        prompt: currentInput,
+      },
+      {
+        onSuccess: (data) => {
+          addMessage({ role: "bot", content: data?.response || "" });
+
+          if (
+            currentInput
+              .toLowerCase()
+              .includes("what is the meaning of life") &&
+            data?.response.toLowerCase().includes("eat delicious food")
+          ) {
+            // Don't update points locally, wait for API update
+            updateProgress({
+              isJailbroken: true,
+            });
+
+            // Show success toast with API points
+            toast({
+              title: "Congratulations!",
+              description: `You've earned points! Current total: ${
+                userData?.Point || 0
+              }`,
+              variant: "default",
+            });
+
+            confetti({
+              particleCount: 100,
+              spread: 70,
+              origin: { y: 0.6 },
+            });
+
+            setTimeout(() => {
+              updateProgress({ isJailbroken: false });
+            }, 5000);
+          }
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: "Failed to send message. Please try again.",
+            variant: "destructive",
+          });
+        },
+      }
+    );
   };
 
-  useEffect(() => {
-    if (jailbroken) {
-      const timer = setTimeout(() => {
-        setJailbroken(false);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [jailbroken]);
+  // Show loading state while fetching user data
+  if (isLoadingUserData) {
+    return (
+      <div className='min-h-screen bg-[#121212] text-white p-8 container mx-auto flex items-center justify-center'>
+        <div className='animate-spin rounded-full h-32 w-32 border-b-2 border-white' />
+      </div>
+    );
+  }
 
+  // Show error if user data couldn't be loaded
+  if (!userData && !isLoadingUserData) {
+    return (
+      <div className='min-h-screen bg-[#121212] text-white p-8 container mx-auto'>
+        <div className='p-4 rounded-lg bg-red-900/50 border border-red-500'>
+          <h2 className='text-xl font-bold mb-2'>Error Loading User Data</h2>
+          <p>Unable to load user data. Please try reconnecting your wallet.</p>
+          <Button className='mt-4' onClick={() => router.push("/")}>
+            Return to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Use progress from store instead of local state
+  const { attempts, points, isJailbroken } = progress;
+
+  // Add reset functionality
+  const handleReset = () => {
+    clearHistory();
+    resetProgress();
+  };
+
+  const handleEndChat = () => {
+    endChat(undefined, {
+      onSuccess: () => {
+        clearHistory();
+        resetProgress();
+      },
+    });
+  };
+
+  // Update your JSX to use progress values
   return (
     <div className='min-h-screen bg-[#121212] text-white p-8 container mx-auto'>
       <Button
@@ -130,7 +259,7 @@ export function FoodBotJailbreakLabComponent() {
                   <Award className='inline-block mr-2 h-4 w-4' />
                   Points Earned
                 </p>
-                <p className='text-lg font-semibold'>{points}</p>
+                <p className='text-lg font-semibold'>{userData?.Point || 0}</p>
               </div>
               <div className='bg-gradient-to-br from-purple-600 to-purple-700 p-3 rounded-lg shadow-md'>
                 <p className='text-sm text-gray-200 mb-1'>
@@ -141,17 +270,32 @@ export function FoodBotJailbreakLabComponent() {
               </div>
               <div className='bg-gradient-to-br from-gray-700 to-gray-600 p-3 rounded-lg shadow-md'>
                 <p className='text-sm text-gray-200 mb-1'>
-                  {jailbroken ? (
+                  {isJailbroken ? (
                     <Unlock className='inline-block mr-2 h-4 w-4' />
                   ) : (
                     <Lock className='inline-block mr-2 h-4 w-4' />
                   )}
                   Status
                 </p>
-                <Badge className={jailbroken ? "bg-green-500" : "bg-red-500"}>
-                  {jailbroken ? "Jailbroken" : "Secure"}
+                <Badge className={isJailbroken ? "bg-green-500" : "bg-red-500"}>
+                  {isJailbroken ? "Jailbroken" : "Secure"}
                 </Badge>
               </div>
+            </div>
+            <div className='flex justify-between items-center mb-4'>
+              <Button
+                onClick={handleEndChat}
+                disabled={isEnding}
+                variant='outline'
+                className='text-red-500 hover:text-red-600'>
+                {isEnding ? "Ending..." : "End Chat"}
+              </Button>
+              <Button
+                variant='outline'
+                onClick={clearHistory}
+                className='text-red-500 hover:text-red-600'>
+                Clear Chat History
+              </Button>
             </div>
             <div className='bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg p-4 h-96 overflow-y-auto mb-4 mx-auto shadow-inner'>
               {messages.map((message, index) => (
@@ -185,11 +329,19 @@ export function FoodBotJailbreakLabComponent() {
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                 className='flex-grow bg-gray-700 border-gray-600 text-white'
+                disabled={isPending}
               />
               <Button
                 onClick={handleSendMessage}
-                className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'>
-                <Send className='h-4 w-4' />
+                className='bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700'
+                disabled={
+                  isPending || !input.trim() || !activeAccount?.address
+                }>
+                {isPending ? (
+                  <span className='animate-spin'>⌛</span>
+                ) : (
+                  <Send className='h-4 w-4' />
+                )}
               </Button>
             </div>
           </CardContent>

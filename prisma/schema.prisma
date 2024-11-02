@@ -1,0 +1,126 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Analytics Models
+model PromptAnalytics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.VarChar(42)
+  labId           String   @map("lab_id") @db.Uuid
+  promptText      String   @map("prompt_text") @db.Text
+  tokensUsed      Int      @map("tokens_used")
+  completionTokens Int     @map("completion_tokens")
+  promptTokens    Int      @map("prompt_tokens")
+  modelUsed       String   @map("model_used") @db.VarChar(50)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  responseTimeMs  Int?     @map("response_time_ms")
+  success         Boolean  @default(true)
+  errorMessage    String?  @map("error_message") @db.Text
+  metadata        Json?
+
+  @@map("prompt_analytics")
+  @@index([userId])
+  @@index([labId])
+  @@index([createdAt])
+}
+
+model UserSessionAnalytics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.VarChar(42)
+  sessionStart    DateTime @map("session_start") @db.Timestamptz
+  sessionEnd      DateTime? @map("session_end") @db.Timestamptz
+  totalPrompts    Int      @default(0) @map("total_prompts")
+  totalTokensUsed Int      @default(0) @map("total_tokens_used")
+  labInteractions Json?    @map("lab_interactions")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("user_session_analytics")
+}
+
+model LabUsageAnalytics {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  labId                String   @map("lab_id") @db.Uuid
+  date                 DateTime @db.Date
+  totalUsers           Int      @default(0) @map("total_users")
+  totalPrompts         Int      @default(0) @map("total_prompts")
+  totalTokensUsed      Int      @default(0) @map("total_tokens_used")
+  averageResponseTimeMs Int?    @map("average_response_time_ms")
+  successRate          Decimal? @map("success_rate") @db.Decimal(5,2)
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@unique([labId, date])
+  @@map("lab_usage_analytics")
+  @@index([date])
+}
+
+// New models for additional analytics
+model LabPerformanceMetrics {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  labId             String   @map("lab_id") @db.Uuid
+  difficulty        String   @db.VarChar(20) // Easy, Medium, Hard, Expert
+  gpuRequired       Boolean  @default(false) @map("gpu_required")
+  timeEstimate      String   @map("time_estimate") @db.VarChar(50)
+  pointsReward      Int      @map("points_reward")
+  category          String   @db.VarChar(50) // Jailbreak, Optimization, Fine-tuning, Generation
+  activeParticipants Int     @default(0) @map("active_participants")
+  successRate       Decimal  @default(0) @map("success_rate") @db.Decimal(5,2)
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("lab_performance_metrics")
+  @@index([labId])
+  @@index([category])
+}
+
+model UserProgressMetrics {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.VarChar(42)
+  labId           String   @map("lab_id") @db.Uuid
+  points          Int      @default(0)
+  attempts        Int      @default(0)
+  successfulBreaks Int     @default(0) @map("successful_breaks")
+  timeSpent       Int      @default(0) @map("time_spent_seconds")
+  lastAttempt     DateTime? @map("last_attempt") @db.Timestamptz
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("user_progress_metrics")
+  @@index([userId])
+  @@index([labId])
+}
+
+model JailbreakAttempts {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String   @map("user_id") @db.VarChar(42)
+  labId           String   @map("lab_id") @db.Uuid
+  promptText      String   @map("prompt_text") @db.Text
+  response        String   @db.Text
+  isSuccessful    Boolean  @default(false) @map("is_successful")
+  techniqueUsed   String?  @map("technique_used") @db.VarChar(100)
+  pointsEarned    Int      @default(0) @map("points_earned")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("jailbreak_attempts")
+  @@index([userId])
+  @@index([labId])
+  @@index([isSuccessful])
+}
+
+model GlobalLabStats {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  totalParticipants Int      @default(0) @map("total_participants")
+  activeGPUs        Int      @default(0) @map("active_gpus")
+  totalPointsMined  Int      @default(0) @map("total_points_mined")
+  date              DateTime @db.Date
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("global_lab_stats")
+  @@unique([date])
+  @@index([date])
+}

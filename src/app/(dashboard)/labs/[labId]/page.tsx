@@ -1,8 +1,17 @@
-import { FoodBotJailbreakLabComponent } from "@/components/food-bot-jailbreak-lab";
-import React from "react";
+import { decodeJWT } from "@/app/actions/login";
+import { redirect } from "next/navigation";
+import { Dashboard } from "@/components/app-dashboard-page";
 
-const LabPage = () => {
-  return <FoodBotJailbreakLabComponent />;
-};
+export default async function LabPage({
+  params,
+}: {
+  params: { labId: string };
+}) {
+  const isAuth = await decodeJWT();
+  console.log(isAuth);
 
-export default LabPage;
+  if (!isAuth.isAuthenticated) {
+    return redirect("/");
+  }
+  return <Dashboard labId={params.labId} />;
+}
