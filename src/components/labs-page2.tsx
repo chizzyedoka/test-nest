@@ -6,7 +6,6 @@ import { LabCard } from "./labs/lab-card";
 import { LabDetailsDialog } from "./labs/lab-details-dialog";
 import { StatsHeader } from "./labs/stats-header";
 import { SearchBar } from "./labs/search-bar";
-import { labsData } from "./labs/labs-data";
 import { Lab } from "./labs/types";
 import { useActiveLabs } from "@/hooks/use-active-labs";
 function mapApiLabToLabType(apiLab: { labid: string; labname: string }): Lab {
