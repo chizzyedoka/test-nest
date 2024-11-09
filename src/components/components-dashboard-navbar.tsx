@@ -13,16 +13,28 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import Image from "next/image";
-import ConnectButton from "./ConnectButton";
+import {
+  generatePayload,
+  isLoggedIn,
+  login,
+  logout,
+} from "@/app/actions/login";
+
+import { ConnectButton } from "thirdweb/react";
+import { createWallet } from "thirdweb/wallets";
+import { client } from "@/lib/client";
 
 export function Navbar() {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  // const { connect } = useConnect();
 
-  const connectWallet = async () => {
-    // Implement wallet connection logic here
-    // For now, we'll just set a dummy address
-    setWalletAddress("0x1234...5678");
-  };
+  const wallets = [
+    createWallet("io.metamask"),
+    createWallet("com.coinbase.wallet"),
+    createWallet("me.rainbow"),
+    createWallet("io.rabby"),
+    createWallet("io.zerion.wallet"),
+  ];
 
   return (
     <nav
@@ -77,8 +89,35 @@ export function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              // <Button onClick={connectWallet}>Connect Wallet</Button>
-              <ConnectButton />
+              <ConnectButton
+                detailsModal={{
+                  hideBuyFunds: true,
+                  hideReceiveFunds: true,
+                  hideSendFunds: true,
+                  hideSwitchWallet: true,
+
+                  showTestnetFaucet: false,
+                }}
+                wallets={wallets}
+                connectModal={{ size: "compact" }}
+                client={client}
+                auth={{
+                  isLoggedIn: async (address) => {
+                    console.log("checking if logged in!", { address });
+                    return await isLoggedIn();
+                  },
+                  doLogin: async (params) => {
+                    console.log("logging in!");
+                    await login(params);
+                  },
+                  getLoginPayload: async ({ address }) =>
+                    generatePayload({ address }),
+                  doLogout: async () => {
+                    console.log("logging out!");
+                    await logout();
+                  },
+                }}
+              />
             )}
             {/* <ThemeToggle /> */}
           </div>

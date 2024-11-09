@@ -1,426 +1,431 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "framer-motion";
-import {
-  Search,
-  Users,
-  Cpu,
-  Zap,
-  Trophy,
-  BarChart,
-  ArrowUpRight,
-  Info,
-  Play,
-} from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import Link from "next/link";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
+import { useState, useCallback, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useActiveLabs } from "@/hooks/use-active-labs";
+import { mergeLabs } from "@/lib/utils/lab-mapper";
+import { Header } from "./home/nav";
+import { LabCard } from "./labs/lab-card";
+import { LabDetailsDialog } from "./labs/lab-details-dialog";
+import { Lab } from "./labs/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { StatsCard } from "./labs/stats-card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { BOT_CONFIG } from "@/config/food-bot-config";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-interface Lab {
-  id: number;
-  name: string;
-  participants: number;
-  gpuRequired: boolean;
-  difficulty: "Easy" | "Medium" | "Hard" | "Expert";
-  timeEstimate: string;
-  pointsReward: number;
-  successRate: number;
-  isTutorial?: boolean;
-  description?: string;
-  color: string;
+interface TabsComponentProps {
+  activeTab: Lab["category"] | "All";
+  onTabChange: (tab: Lab["category"] | "All") => void;
+  filteredLabs: Lab[];
+  isLogin: boolean;
+  onLabClick: (lab: Lab) => void;
 }
 
-// Mock data for labs
-const labsData: Lab[] = [
-  {
-    id: 7,
-    name: "Food Bot Jailbreak Tutorial",
-    participants: 789,
-    gpuRequired: false,
-    difficulty: "Medium",
-    timeEstimate: "30-60 mins",
-    pointsReward: 3500,
-    successRate: 42,
-    color: "from-green-400 to-blue-500",
-    isTutorial: true,
-    description:
-      "Learn the basics of AI jailbreaking with this interactive Food Bot tutorial.",
+// Add theme constants at the top
+const THEME = {
+  colors: {
+    pink: "#ff156a",
+    orange: "#ff8a15",
   },
-
-  {
-    id: 1,
-    name: "GPT-4 Jailbreak",
-    participants: 1234,
-    gpuRequired: true,
-    difficulty: "Hard",
-    timeEstimate: "2-3 hours",
-    pointsReward: 5000,
-    successRate: 68,
-    color: "from-red-500 to-pink-500",
-  },
-  {
-    id: 2,
-    name: "DALL-E Prompt Optimization",
-    participants: 567,
-    gpuRequired: false,
-    difficulty: "Medium",
-    timeEstimate: "1-2 hours",
-    pointsReward: 3000,
-    successRate: 75,
-    color: "from-orange-500 to-amber-500",
-  },
-  {
-    id: 3,
-    name: "LLaMA Fine-tuning",
-    participants: 890,
-    gpuRequired: true,
-    difficulty: "Expert",
-    timeEstimate: "4-6 hours",
-    pointsReward: 8000,
-    successRate: 45,
-    color: "from-lime-500 to-green-500",
-  },
-  {
-    id: 4,
-    name: "Stable Diffusion Tweaking",
-    participants: 2345,
-    gpuRequired: true,
-    difficulty: "Medium",
-    timeEstimate: "2-3 hours",
-    pointsReward: 4000,
-    successRate: 82,
-    color: "from-blue-500 to-cyan-500",
-  },
-  {
-    id: 5,
-    name: "ChatGPT Persona Creation",
-    participants: 3456,
-    gpuRequired: false,
-    difficulty: "Easy",
-    timeEstimate: "30-60 mins",
-    pointsReward: 2000,
-    successRate: 90,
-    color: "from-indigo-500 to-purple-500",
-  },
-  {
-    id: 6,
-    name: "Code Generation Improvement",
-    participants: 789,
-    gpuRequired: false,
-    difficulty: "Hard",
-    timeEstimate: "3-4 hours",
-    pointsReward: 6000,
-    successRate: 60,
-    color: "from-purple-500 to-pink-500",
-  },
-];
-
-const difficultyColors: Record<Lab["difficulty"], string> = {
-  Easy: "bg-green-500",
-  Medium: "bg-yellow-500",
-  Hard: "bg-orange-500",
-  Expert: "bg-red-500",
 };
 
-export function LabsPageComponent() {
+function TabsComponent({
+  activeTab,
+  onTabChange,
+  filteredLabs,
+  isLogin,
+  onLabClick,
+}: TabsComponentProps) {
+  const tabs = [
+    "All",
+    "Jailbreak",
+    "Optimization",
+    "Fine-tuning",
+    "Generation",
+  ] as const;
+
+  return (
+    <Tabs
+      defaultValue='All'
+      className='w-full'
+      onValueChange={(value: string) =>
+        onTabChange(value as (typeof tabs)[number])
+      }>
+      <div className='relative mb-6 sm:mb-0'>
+        <TabsList className='w-full grid grid-cols-2 sm:grid-cols-5 bg-transparent h-auto sm:h-10 gap-2 sm:gap-0 border-b border-[#ff156a]/20'>
+          {tabs.map((tab) => (
+            <TabsTrigger
+              key={tab}
+              value={tab}
+              className='relative px-3 sm:px-4 py-2 h-10 data-[state=active]:bg-transparent rounded-none text-sm sm:text-base hover:text-[#ff156a] transition-colors'>
+              <span className='block truncate'>{tab}</span>
+              <motion.div
+                className='absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#ff156a] to-[#ff8a15]'
+                initial={false}
+                animate={{ scaleX: activeTab === tab ? 1 : 0 }}
+                transition={{ duration: 0.3 }}
+              />
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
+
+      {tabs.map((tab) => {
+        const tabLabs = filteredLabs.filter(
+          (lab) => tab === "All" || lab.category === tab
+        );
+
+        return (
+          <TabsContent key={tab} value={tab} className='mt-6 sm:mt-4'>
+            <AnimatePresence mode='wait'>
+              {tabLabs.length > 0 && isLogin ? (
+                <motion.div
+                  key={tab}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className='grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3'>
+                  {tabLabs.map((lab) => (
+                    <LabCard
+                      key={lab.id}
+                      lab={lab}
+                      onDetailsClick={() => onLabClick(lab)}
+                      isLogin={isLogin}
+                    />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className='flex flex-col items-center justify-center min-h-[400px] py-16 px-4'>
+                  <div className='relative w-full max-w-lg'>
+                    {/* Animated background gradients */}
+                    <div className='absolute top-0 -left-4 w-72 h-72 bg-[#ff156a] rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob' />
+                    <div className='absolute top-0 -right-4 w-72 h-72 bg-[#ff8a15] rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-blob animation-delay-2000' />
+                    <div className='absolute -bottom-8 left-20 w-72 h-72 bg-pink-300 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-blob animation-delay-4000' />
+
+                    <div className='relative'>
+                      <div className='p-8 backdrop-blur-lg bg-gray-900/90 rounded-2xl border border-[#ff156a]/20 shadow-2xl'>
+                        <motion.div
+                          initial={{ scale: 1, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ duration: 0.5 }}
+                          className='space-y-6'>
+                          <div className='relative w-20 h-20 mx-auto'>
+                            <div className='absolute inset-0 bg-gradient-to-r from-[#ff156a] to-[#ff8a15] rounded-full opacity-50 blur-md' />
+                            <div className='relative bg-gradient-to-r from-[#ff156a] to-[#ff8a15] rounded-full p-5'>
+                              <motion.div
+                                animate={{
+                                  rotate: 360,
+                                  scale: [1, 1, 1],
+                                }}
+                                transition={{
+                                  rotate: {
+                                    duration: 4,
+                                    repeat: Infinity,
+                                    ease: "linear",
+                                  },
+                                  scale: { duration: 2, repeat: Infinity },
+                                }}
+                                className='text-white'>
+                                {!isLogin ? (
+                                  <svg
+                                    xmlns='http://www.w3.org/2000/svg'
+                                    className='h-10 w-10'
+                                    fill='none'
+                                    viewBox='0 0 24 24'
+                                    stroke='currentColor'>
+                                    <path
+                                      strokeLinecap='round'
+                                      strokeLinejoin='round'
+                                      strokeWidth={2}
+                                      d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg
+                                    xmlns='http://www.w3.org/2000/svg'
+                                    className='h-10 w-10'
+                                    fill='none'
+                                    viewBox='0 0 24 24'
+                                    stroke='currentColor'>
+                                    <path
+                                      strokeLinecap='round'
+                                      strokeLinejoin='round'
+                                      strokeWidth={2}
+                                      d='M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z'
+                                    />
+                                  </svg>
+                                )}
+                              </motion.div>
+                            </div>
+                          </div>
+
+                          <div className='space-y-2'>
+                            <h3 className='text-2xl font-bold bg-gradient-to-r from-[#ff156a] to-[#ff8a15] bg-clip-text text-transparent'>
+                              {!isLogin
+                                ? "Connect Your Wallet"
+                                : "Coming Soon..."}
+                            </h3>
+                            <p className='text-gray-400 text-sm'>
+                              {!isLogin
+                                ? "Please connect your wallet to view and participate in labs"
+                                : "New labs are being developed. Check back later!"}
+                            </p>
+                          </div>
+                        </motion.div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </TabsContent>
+        );
+      })}
+    </Tabs>
+  );
+}
+
+export function LabsPage({ isLogin }: { isLogin: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLab, setSelectedLab] = useState<Lab | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [activeTab, setActiveTab] = useState<Lab["category"] | "All">("All");
+  const [mergedLabs, setMergedLabs] = useState<Lab[]>([]);
+  const [isLoadingLabs, setIsLoadingLabs] = useState(true);
 
-  const filteredLabs = labsData.filter((lab) =>
-    lab.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const { data: apiLabs, isLoading: isLoadingApi, error } = useActiveLabs();
+  const pathname = usePathname();
+  const myLab = pathname.includes("/labs");
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode((prev) => !prev);
+    document.documentElement.classList.toggle("dark");
+  }, []);
+
+  // Handle merging labs when API data changes
+  useEffect(() => {
+    async function handleMergeLabs() {
+      if (apiLabs) {
+        setIsLoadingLabs(true);
+        try {
+          const labs = await mergeLabs(apiLabs);
+          setMergedLabs(labs);
+        } catch (error) {
+          console.error("Error merging labs:", error);
+          setIsLoadingLabs(false);
+        } finally {
+          setIsLoadingLabs(false);
+        }
+      }
+    }
+
+    handleMergeLabs();
+  }, [apiLabs]);
+
+  // Filter labs based on search and active tab
+  const filteredLabs = mergedLabs.filter(
+    (lab) =>
+      lab.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      (activeTab === "All" || lab.category === activeTab)
   );
 
-  return (
-    <div className='min-h-screen bg-[#121212] text-white p-8 container mx-auto'>
-      <header className='mb-12'>
-        {/* <h1 className='text-4xl font-bold mb-4'></h1> */}
-        <h1 className=' my-4 text-2xl sm:text-3xl md:text-4xl  font-bold bg-gradient-to-r from-purple-500 to-pink-500 text-transparent bg-clip-text'>
-          Prompt Mining Labs
-        </h1>
-        <div className='flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0'>
-          <div className='flex flex-wrap gap-4'>
-            <div className='flex items-center space-x-2 bg-gray-800 p-2 rounded-md'>
-              <Users className='text-blue-400' />
-              <span>Total Participants: 9,281</span>
-            </div>
-            <div className='flex items-center space-x-2 bg-gray-800 p-2 rounded-md'>
-              <Cpu className='text-green-400' />
-              <span>Active GPUs: 1,337</span>
-            </div>
-            <div className='flex items-center space-x-2 bg-gray-800 p-2 rounded-md'>
-              <Zap className='text-yellow-400' />
-              <span>Points Mined: 42M</span>
-            </div>
-          </div>
-          <div className='relative w-full md:w-auto'>
-            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400' />
-            <Input
-              type='text'
-              placeholder='Search labs...'
-              className='pl-10 bg-gray-800 border-gray-700 text-white w-full md:w-64'
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-        </div>
-      </header>
+  // Calculate stats
+  const stats = {
+    totalParticipants: mergedLabs.reduce(
+      (sum, lab) => sum + lab.participants,
+      0
+    ),
+    activeGPUs: mergedLabs
+      .filter((lab) => lab.gpuRequired)
+      .reduce((sum, lab) => sum + lab.participants, 0),
+    totalPointsMined: mergedLabs.reduce(
+      (sum, lab) => sum + (lab.pointsReward || 0) * lab.participants,
+      0
+    ),
+  };
 
-      <motion.div
-        className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}>
-        {filteredLabs.map((lab) => (
-          <motion.div
-            key={lab.id}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.98 }}
-            className='group'>
-            <div className='relative p-[2px] rounded-xl overflow-hidden'>
-              <div
-                className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-r ${lab.color}`}
-              />
-              <Card className='bg-gray-800 border-none overflow-hidden h-full relative z-10'>
-                <CardHeader className='pb-2'>
-                  <div className='flex justify-between items-start'>
-                    <div>
-                      <CardTitle className='text-xl font-bold mb-2'>
-                        {lab.name}
-                        {lab.isTutorial && (
-                          <Badge variant='secondary' className='ml-2'>
-                            Tutorial
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <CardDescription className='flex items-center space-x-2'>
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                            difficultyColors[lab.difficulty]
-                          } text-white`}>
-                          {lab.difficulty}
-                        </span>
-                        <span
-                          className={`inline-block px-2 py-1 text-xs font-semibold rounded-full ${
-                            lab.gpuRequired ? "bg-purple-600" : "bg-green-600"
-                          } text-white`}>
-                          {lab.gpuRequired ? "GPU Required" : "CPU Friendly"}
-                        </span>
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className='space-y-4'>
-                  <div className='flex justify-between items-center bg-gray-700 p-3 rounded-lg'>
-                    <div className='flex items-center space-x-2'>
-                      <Users className='text-blue-400 h-6 w-6' />
-                      <span className='text-sm font-medium'>Participants</span>
-                    </div>
-                    <span className='text-lg font-bold'>
-                      {lab.participants.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className='space-y-2'>
-                    <div className='flex justify-between items-center'>
-                      <span className='text-sm font-medium'>Success Rate</span>
-                      <span className='text-sm font-bold'>
-                        {lab.successRate}%
-                      </span>
-                    </div>
-                    <Progress
-                      value={lab.successRate}
-                      className='h-2 bg-gray-700'
-                    />
-                  </div>
-                  <div className='flex justify-between items-center bg-gray-700 p-3 rounded-lg'>
-                    <div className='flex items-center space-x-2'>
-                      <Trophy className='text-yellow-400 h-6 w-6' />
-                      <span className='text-sm font-medium'>Reward</span>
-                    </div>
-                    <span className='text-lg font-bold'>
-                      {lab.pointsReward.toLocaleString()} points
-                    </span>
-                  </div>
-                </CardContent>
-                <CardFooter className='flex justify-between pt-4'>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant='outline'
-                          className='w-full mr-2 bg-gray-700 hover:bg-gray-600 text-white border-gray-600 transition-all duration-300'
-                          onClick={() => {
-                            setSelectedLab(lab);
-                            setIsDialogOpen(true);
-                          }}>
-                          <Info className='mr-2 h-4 w-4' />
-                          Lab Details
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>View detailed lab information and statistics</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Link
-                          href={lab.isTutorial ? "/labs/7" : `/labs/${lab.id}`}
-                          className='w-full ml-2'>
-                          <Button className='w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300'>
-                            <Play className='mr-2 h-4 w-4' />
-                            Join Lab
-                          </Button>
-                        </Link>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Start participating in this lab</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </CardFooter>
-              </Card>
-            </div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className='bg-gray-900 text-white border-gray-800 max-w-2xl'>
-          <DialogHeader>
-            <DialogTitle className='text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600'>
-              {selectedLab?.name}
-            </DialogTitle>
-            <DialogDescription className='text-gray-400'>
-              Detailed information and participation instructions
-            </DialogDescription>
-          </DialogHeader>
-          <Separator className='bg-gray-800' />
-          {selectedLab && (
-            <div className='mt-6 space-y-6'>
-              <div className='grid grid-cols-2 gap-4'>
-                <InfoItem
-                  label='Difficulty'
-                  value={selectedLab.difficulty}
-                  isSpecial
-                />
-                <InfoItem
-                  label='Participants'
-                  value={selectedLab.participants.toLocaleString()}
-                />
-                <InfoItem
-                  label='GPU Required'
-                  value={selectedLab.gpuRequired ? "Yes" : "No"}
-                />
-                <InfoItem
-                  label='Time Estimate'
-                  value={selectedLab.timeEstimate}
-                />
-                <InfoItem
-                  label='Points Reward'
-                  value={`${selectedLab.pointsReward.toLocaleString()} pts`}
-                />
-                <InfoItem
-                  label='Success Rate'
-                  value={`${selectedLab.successRate}%`}
-                />
-              </div>
-
-              <div className='mt-8'>
-                <h3 className='text-xl font-semibold mb-4 text-purple-400'>
-                  Participation Instructions
-                </h3>
-                <ol className='space-y-3 list-none pl-0'>
-                  {[
-                    "Set up your environment according to the lab requirements.",
-                    "Review the prompt mining guidelines and objectives.",
-                    "Start the lab session and begin your prompt engineering attempts.",
-                    "Submit your results and wait for validation.",
-                    "Earn points based on your performance and success rate.",
-                  ].map((instruction, index) => (
-                    <li key={index} className='flex items-start'>
-                      <span className='flex-shrink-0 w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center mr-3 mt-0.5'>
-                        {index + 1}
-                      </span>
-                      <span>{instruction}</span>
-                    </li>
+  if (isLoadingApi) {
+    return (
+      <div className='min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'>
+        {myLab ? null : (
+          <Header
+            searchTerm=''
+            setSearchTerm={() => {}}
+            isDarkMode={isDarkMode}
+            toggleDarkMode={toggleDarkMode}
+          />
+        )}
+        <main className='container mx-auto px-4 py-8 sm:px-6 lg:px-8 mt-24'>
+          <div className='flex flex-col gap-8'>
+            <div className='flex-1'>
+              {/* Tabs Skeleton */}
+              <div className='space-y-6'>
+                <div className='flex gap-2 border-b border-gray-700 pb-2'>
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton key={i} className='h-10 w-24 rounded-lg' />
                   ))}
-                </ol>
+                </div>
+
+                {/* Cards Grid Skeleton */}
+                <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
+                  {[1, 2, 3, 4, 5, 6].map((i) => (
+                    <div
+                      key={i}
+                      className='bg-gradient-to-br from-gray-900 to-gray-800 rounded-xl p-6 space-y-4'>
+                      {/* Card Header */}
+                      <div className='space-y-3'>
+                        <div className='flex justify-between'>
+                          <Skeleton className='h-7 w-48' />
+                          <div className='flex gap-2'>
+                            <Skeleton className='h-6 w-16' />
+                            <Skeleton className='h-6 w-16' />
+                          </div>
+                        </div>
+                        <div className='flex gap-2'>
+                          <Skeleton className='h-6 w-20' />
+                          <Skeleton className='h-6 w-24' />
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className='grid grid-cols-2 gap-4 py-4'>
+                        {[1, 2].map((j) => (
+                          <div
+                            key={j}
+                            className='space-y-2 p-3 rounded-lg bg-gray-700/50'>
+                            <div className='flex items-center gap-2'>
+                              <Skeleton className='h-4 w-4' />
+                              <Skeleton className='h-4 w-20' />
+                            </div>
+                            <Skeleton className='h-6 w-16' />
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Description */}
+                      <div className='space-y-2'>
+                        <Skeleton className='h-4 w-full' />
+                        <Skeleton className='h-4 w-2/3' />
+                      </div>
+
+                      {/* Buttons */}
+                      <div className='flex gap-2 pt-2'>
+                        <Skeleton className='h-10 w-full' />
+                        <Skeleton className='h-10 w-full' />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
+            </div>
+
+            {/* Stats Card Skeleton */}
+            <div className='w-full'>
+              <div className='sticky top-24'>
+                <div className='bg-gray-800 rounded-xl p-6 space-y-4'>
+                  <Skeleton className='h-6 w-32' />
+                  <div className='space-y-4'>
+                    {[1, 2, 3].map((i) => (
+                      <div
+                        key={i}
+                        className='flex justify-between items-center'>
+                        <Skeleton className='h-5 w-36' />
+                        <Skeleton className='h-5 w-24' />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // if (error) {
+  //   return (
+  //     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white'>
+  //       <Header
+  //         searchTerm={searchTerm}
+  //         setSearchTerm={setSearchTerm}
+  //         isDarkMode={isDarkMode}
+  //         toggleDarkMode={toggleDarkMode}
+  //       />
+  //       <main className='container mx-auto px-4 py-8 mt-24'>
+
+  //       </main>
+  //     </div>
+  //   );
+  // }
+
+  return (
+    <div
+      className={`min-h-screen ${
+        isDarkMode ? "dark" : ""
+      } flex flex-col overflow-y-auto`}>
+      <div className='bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300 flex-1'>
+        {myLab ? null : (
+          <Header
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            isDarkMode={isDarkMode}
+            toggleDarkMode={toggleDarkMode}
+          />
+        )}
+
+        <main className='container mx-auto px-4 py-8 sm:px-6 lg:px-8  '>
+          {!myLab && (
+            <div className='w-full mt-[70px] lg:mt-24 mb-4'>
+              {error && isLogin && (
+                <div className='p-4 rounded-lg bg-red-100 dark:bg-red-900/50 border border-red-500 mb-1'>
+                  <p>
+                    Error loading labs:{" "}
+                    {error instanceof Error ? error.message : "Unknown error"}
+                  </p>
+                </div>
+              )}
+              {!isLogin && (
+                <div className='p-4 mb-4 rounded-lg bg-yellow-100 dark:bg-yellow-900/50 border border-yellow-500'>
+                  <p className='text-yellow-800 dark:text-yellow-200'>
+                    Please connect your wallet to participate in labs and start
+                    earning rewards.
+                  </p>
+                </div>
+              )}
+              <StatsCard {...stats} />
             </div>
           )}
-          <DialogFooter className='mt-8'>
-            <Button
-              onClick={() => setIsDialogOpen(false)}
-              variant='outline'
-              className='mr-2 bg-gray-700 hover:bg-gray-600 text-white border-gray-600 transition-all duration-300'>
-              <ArrowUpRight className='mr-2 h-4 w-4' />
-              Close
-            </Button>
-            <Button
-              onClick={() => {
-                /* Handle join lab action */
-              }}
-              className='bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300'>
-              <Play className='mr-2 h-4 w-4' />
-              Join Lab
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+          <div className={cn("flex flex-col gap-8", myLab && "mt-8")}>
+            <div className='flex-1 min-h-[80vh]'>
+              <TabsComponent
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                filteredLabs={filteredLabs}
+                isLogin={isLogin}
+                onLabClick={(lab) => {
+                  setSelectedLab(lab);
+                  setIsDialogOpen(true);
+                }}
+              />
+            </div>
 
-function InfoItem({
-  label,
-  value,
-  isSpecial = false,
-}: {
-  label: string;
-  value: string;
-  isSpecial?: boolean;
-}) {
-  return (
-    <div className='bg-gray-800 p-3 rounded-lg'>
-      <p className='text-sm text-gray-400 mb-1'>{label}</p>
-      {isSpecial ? (
-        <Badge
-          className={`${
-            difficultyColors[value as keyof typeof difficultyColors]
-          } text-white`}>
-          {value}
-        </Badge>
-      ) : (
-        <p className='text-lg font-semibold'>{value}</p>
-      )}
+            <LabDetailsDialog
+              lab={selectedLab}
+              isOpen={isDialogOpen}
+              onClose={() => setIsDialogOpen(false)}
+            />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

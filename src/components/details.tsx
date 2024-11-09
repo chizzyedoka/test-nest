@@ -50,11 +50,11 @@ export const Details = () => {
           color: "from-blue-500 to-cyan-500",
         },
         {
-          title: "Model Performance",
-          icon: Cpu,
-          value: "89%",
-          change: "+2%",
-          color: "from-indigo-500 to-purple-500",
+          title: "Total Prompts",
+          icon: Award,
+          value: "1,234",
+          change: "+20%",
+          color: "from-yellow-500 to-orange-500",
         },
       ].map((stat) => (
         <motion.div key={stat.title} variants={bentoItemVariants}>

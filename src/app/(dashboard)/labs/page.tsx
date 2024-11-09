@@ -1,8 +1,13 @@
-import { LabsPageComponent } from "@/components/labs-page";
-import React from "react";
+import { decodeJWT, isLoggedIn } from "@/app/actions/login";
+import { LabsPage } from "@/components/labs-page";
+import { redirect } from "next/navigation";
 
-const LabsPage = () => {
-  return <LabsPageComponent />;
-};
+export default async function LabsIndexPage() {
+  const isAuth = await decodeJWT();
+  const isLogin = await isLoggedIn();
+  if (!isAuth.isAuthenticated) {
+    return redirect("/");
+  }
 
-export default LabsPage;
+  return <LabsPage isLogin={isLogin} />;
+}

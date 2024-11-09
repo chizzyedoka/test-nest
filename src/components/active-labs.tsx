@@ -1,146 +1,184 @@
-import { motion } from "framer-motion";
-import React, { useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "./ui/card";
-import { AnimatePresence } from "framer-motion";
-import { Button } from "./ui/button";
-import { ChevronRight, Users, ArrowUpRight } from "lucide-react";
-import Link from "next/link";
+"use client";
 
-const bentoGridVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useRegisterUser } from "@/hooks/use-register-user";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Play,
+  Users,
+  Trophy,
+  ArrowUpRight,
+  Pause,
+  Sparkles,
+  Repeat,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import Link from "next/link";
+import { useActiveAccount } from "thirdweb/react";
+import { useToast } from "@/hooks/use-toast";
+import { FOOD_BOT_LAB_ID } from "@/config/food-bot-config";
+import { useUserData } from "@/hooks/use-user-data";
+
+// Theme constants matching dashboard
+const THEME = {
+  colors: {
+    pink: "#ff156a",
+    orange: "#ff8a15",
+  },
+  gradients: {
+    primary: "from-[#ff156a] to-[#ff8a15]",
+    secondary: "from-purple-500 to-pink-500",
   },
 };
 
-const bentoItemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
+const featuredLab = {
+  id: FOOD_BOT_LAB_ID,
+  name: "Food Bot Jailbreak Tutorial",
+  participants: 789,
+  pointsReward: 3500,
+  description:
+    "Learn the basics of AI jailbreaking with this interactive Food Bot tutorial.",
 };
 
-export const ActiveLabs = () => {
-  const [isHovered, setIsHovered] = useState(false);
+export function ActiveLabs() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const activeAccount = useActiveAccount();
+  const params = useParams();
+  const labId = params.labId as string;
+  const { mutate: registerUser, isPending } = useRegisterUser();
+  const { data: userData } = useUserData(activeAccount?.address);
+  const [mounted, setMounted] = useState(false);
 
-  const labs = [
-    {
-      name: "Food Bot Jailbreak",
-      participants: 120,
-      progress: 65,
-      color: "from-red-500 to-pink-500",
-    },
-    {
-      name: "Auto Trader Prompt Optimization",
-      participants: 85,
-      progress: 40,
-      color: "from-orange-500 to-amber-500",
-    },
-    {
-      name: "Lama Fine-tuning Challenge",
-      participants: 200,
-      progress: 80,
-      color: "from-lime-500 to-green-500",
-    },
-  ];
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const localWalletAddress = localStorage.getItem("food_bot_walletAddress");
+  const checkFoodBotLab = localWalletAddress === activeAccount?.address;
+
+  const handleStartTutorial = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!activeAccount?.address) {
+      toast({
+        variant: "destructive",
+        title: "Connect Wallet",
+        description: "Please connect your wallet first",
+      });
+      return;
+    }
+
+    try {
+      if (checkFoodBotLab && labId === FOOD_BOT_LAB_ID) {
+        router.push(`/labs/${FOOD_BOT_LAB_ID}/lab-details`);
+        return;
+      }
+
+      await registerUser({
+        walletAddress: activeAccount.address,
+        stake: 0,
+      });
+
+      localStorage.setItem("food_bot_walletAddress", activeAccount.address);
+      router.push(`/labs/${labId}/lab-details`);
+    } catch (error) {
+      console.error("Failed to start tutorial:", error);
+    }
+  };
 
   return (
-    <div
-      className={`p-1 sm:p-[2px] rounded-xl transition-all duration-300 h-full ${
-        isHovered
-          ? "bg-gradient-to-r from-purple-500 to-pink-500"
-          : "bg-transparent"
-      }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}>
-      <Card className='transition-all duration-300 shadow-lg h-full relative overflow-hidden bg-background border-none'>
-        <AnimatePresence>
-          {isHovered && (
+    <div className='p-0  h-full'>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className='h-full'>
+        <Card className='group h-full relative overflow-hidden bg-gray-900/50 backdrop-blur-sm border-gray-800'>
+          <div className='absolute inset-0 bg-gradient-to-r from-[#ff156a] to-[#ff8a15] opacity-5' />
+
+          <CardHeader className='text-center p-6 relative z-10'>
             <motion.div
-              className='absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-20'
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.2 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            />
-          )}
-        </AnimatePresence>
-        <CardHeader className='p-4 sm:p-6'>
-          <CardTitle className='text-xl sm:text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent'>
-            Active Labs
-          </CardTitle>
-          <CardDescription className='text-sm sm:text-base md:text-lg font-medium'>
-            Current system prompts available for testing
-          </CardDescription>
-        </CardHeader>
-        <CardContent className='p-4 sm:p-6'>
-          <motion.div
-            className='grid gap-4 grid-cols-1 xl:grid-cols-3'
-            variants={bentoGridVariants}
-            initial='hidden'
-            animate='visible'>
-            {labs.map((lab, index) => (
-              <motion.div key={lab.name} variants={bentoItemVariants}>
-                <div className='group bg-gray-50 dark:bg-gray-800 rounded-lg p-3 sm:p-4 md:p-5 transition-all duration-300 hover:shadow-md h-full flex flex-col justify-between'>
-                  <div>
-                    <div className='flex justify-between items-center mb-2 md:mb-3'>
-                      <h3 className='font-semibold text-base sm:text-lg md:text-xl group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors duration-300 line-clamp-2'>
-                        {lab.name}
-                      </h3>
-                      <Link href={`/dashboard/labs/${index + 1}`}>
-                        <Button
-                          variant='ghost'
-                          size='icon'
-                          className='opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-                          <ArrowUpRight className='h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5' />
-                        </Button>
-                      </Link>
-                    </div>
-                    <div className='flex items-center text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-400 mb-2 md:mb-3'>
-                      <Users className='h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 mr-1 md:mr-2' />
-                      <span>{lab.participants} participants</span>
-                    </div>
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}>
+              <CardTitle className='text-3xl sm:text-4xl font-bold bg-gradient-to-r from-[#ff156a] to-[#ff8a15] bg-clip-text text-transparent mb-4 flex items-center justify-center gap-2'>
+                <Sparkles className='w-8 h-8' />
+                Start Prompt Miner
+              </CardTitle>
+              <p className='text-lg text-gray-300'>
+                Begin your journey with our featured tutorial lab
+              </p>
+            </motion.div>
+          </CardHeader>
+
+          <CardContent className='p-6 space-y-6 relative z-10'>
+            <motion.div
+              className='rounded-xl p-6 backdrop-blur-sm bg-gray-800/50 border border-gray-700'
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}>
+              <div className='space-y-4'>
+                <div className='flex justify-between items-start mb-4'>
+                  <h3 className='text-2xl font-bold bg-gradient-to-r from-[#ff156a] to-[#ff8a15] bg-clip-text text-transparent'>
+                    {featuredLab.name}
+                  </h3>
+                  <Badge
+                    variant='outline'
+                    className='bg-gradient-to-r from-[#ff156a] to-[#ff8a15] text-white border-none'>
+                    Tutorial
+                  </Badge>
+                </div>
+
+                <p className='text-gray-300'>{featuredLab.description}</p>
+
+                <div className='flex justify-start space-x-4 gap-4 my-6'>
+                  <div className='flex items-center space-x-2 text-gray-300'>
+                    <Repeat className='w-5 h-5 text-[#ff156a]' />
+                    <span>{userData?.["Total Attempt"]} Attempts</span>
                   </div>
-                  <div>
-                    <div className='h-1.5 sm:h-2 md:h-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden'>
-                      <motion.div
-                        className={`h-full bg-gradient-to-r ${lab.color}`}
-                        initial={{ width: 0 }}
-                        animate={{ width: `${lab.progress}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                      />
-                    </div>
-                    <div className='mt-1 sm:mt-2 md:mt-3 text-right text-xs sm:text-sm md:text-base font-medium text-gray-700 dark:text-gray-300'>
-                      {lab.progress}% complete
-                    </div>
+                  <div className='flex items-center space-x-2 text-gray-300'>
+                    <Trophy className='w-5 h-5 text-[#ff8a15]' />
+                    <span>{userData?.Point} pts</span>
                   </div>
                 </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </CardContent>
-        <CardFooter className='flex justify-end w-full mt-2 sm:mt-4 md:mt-6 p-4 sm:p-6'>
-          <Link href='/dashboard/labs' className='w-full xl:w-auto'>
-            <Button
-              size='sm'
-              variant='outline'
-              className='w-full xl:w-auto md:text-lg group hover:bg-gradient-to-r hover:from-purple-500 hover:to-pink-500 hover:text-white transition-all duration-300'>
-              <span className='mr-2 text-sm sm:text-base md:text-lg group-hover:font-semibold'>
-                View All Labs
-              </span>
-              <ChevronRight className='h-4 w-4 md:h-5 md:w-5 group-hover:translate-x-1 transition-transform duration-300' />
-            </Button>
-          </Link>
-        </CardFooter>
-      </Card>
+
+                <div className='flex space-x-4 mt-8'>
+                  <Button
+                    className='w-full h-14 bg-gradient-to-r from-[#ff156a] to-[#ff8a15] hover:opacity-90 transition-opacity text-white font-semibold'
+                    onClick={handleStartTutorial}
+                    disabled={isPending}>
+                    {checkFoodBotLab && featuredLab.id === FOOD_BOT_LAB_ID ? (
+                      <Pause className='mr-2 h-5 w-5' />
+                    ) : (
+                      <Play className='mr-2 h-5 w-5' />
+                    )}
+                    {isPending
+                      ? "Starting..."
+                      : checkFoodBotLab && featuredLab.id === FOOD_BOT_LAB_ID
+                      ? "Continue Lab"
+                      : "Start Tutorial"}
+                  </Button>
+
+                  <Button
+                    variant='outline'
+                    size='lg'
+                    className='h-14 border-gray-700 hover:bg-gray-800 transition-colors'
+                    asChild>
+                    <Link href={`/labs/${FOOD_BOT_LAB_ID}/lab-details`}>
+                      <ArrowUpRight className='h-5 w-5' />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
-};
+}
