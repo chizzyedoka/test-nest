@@ -1,54 +1,47 @@
 import { Lab } from "@/components/labs/types";
-import { labsData } from "@/components/labs/labs-data";
+import { FOOD_BOT_LAB_ID } from '@/config/food-bot-config';
 
-export function mapApiLabToLabType(apiLab: { labid: string; labname: string }): Lab {
-  // Try to find matching static lab data
-  console.log("=========mapApiLabToLabType===========================");
-  console.log(apiLab);
-  console.log("==========mapApiLabToLabType==========================");
-  const staticLab = labsData.find(lab => lab.name === apiLab.labname);
+interface LabParticipantsResponse {
+  labid: string;
+  total_users: number;
+  active_users: number;
+}
 
-  if (staticLab) {
-    return {
-      ...staticLab,
-      id: apiLab.labid, // Use API ID
-    };
+export async function fetchLabParticipants(labId: string): Promise<LabParticipantsResponse> {
+  try {
+    const response = await fetch(`/api/labs/${labId}/participants`, {
+      cache: 'no-store', // Disable client-side caching
+      next: { revalidate: 0 } // Disable server-side caching
+    });
+
+    if (!response.ok) return { labid: labId, total_users: 0, active_users: 0 };
+    const data = await response.json()
+
+    return data.participants;
+  } catch (error) {
+    console.error(`Failed to fetch participants for lab ${labId}:`, error);
+    return { labid: labId, total_users: 0, active_users: 0 };
   }
+}
 
-  // Return default lab data if no static match found
+export async function mapApiLabToLabType(apiLab: { labid: string; labname: string }): Promise<Lab> {
+  const participants = await fetchLabParticipants(apiLab.labid);
+
+
+
   return {
     id: apiLab.labid,
     name: apiLab.labname,
-    participants: 0,
+    participants: participants.total_users,
     gpuRequired: false,
     difficulty: "Medium",
-    timeEstimate: "30-60 mins",
-    pointsReward: 1000,
-    successRate: 0,
-    category: "Generation",
-    description: "New lab from API"
+    localCLI: apiLab.labid === FOOD_BOT_LAB_ID,
+    GUI: apiLab.labid === FOOD_BOT_LAB_ID,
+    category: apiLab.labid === FOOD_BOT_LAB_ID ? "Jailbreak" : "Generation",
+    description: "Learn the basics of AI jailbreaking with this interactive Food Bot tutorial."
   };
 }
 
-export function mergeLabs(apiLabs: Array<{ labid: string; labname: string }> = []): Lab[] {
-  console.log("=========apiLabs===========================");
-  console.log(apiLabs);
-  console.log("==========apiLabs==========================");
-  const apiMappedLabs = apiLabs.map(mapApiLabToLabType);
-  console.log("=========apiMappedLabs===========================");
-  console.log(apiMappedLabs);
-  console.log("==========apiMappedLabs==========================");
-  // Combine static and API labs, preferring API data when there's overlap
-  const combinedLabs = [...labsData];
-
-  apiMappedLabs.forEach(apiLab => {
-    const existingIndex = combinedLabs.findIndex(lab => lab.name === apiLab.name);
-    if (existingIndex >= 0) {
-      combinedLabs[existingIndex] = apiLab;
-    } else {
-      combinedLabs.push(apiLab);
-    }
-  });
-
-  return combinedLabs;
+export async function mergeLabs(apiLabs: Array<{ labid: string; labname: string }> = []): Promise<Lab[]> {
+  return Promise.all(apiLabs.map(mapApiLabToLabType));
 }

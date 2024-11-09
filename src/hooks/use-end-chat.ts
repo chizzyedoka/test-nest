@@ -1,31 +1,37 @@
-import { useMutation } from '@tanstack/react-query'
-import { endChat } from '@/app/actions/end-chat'
-import { useToast } from './use-toast'
+import { useMutation } from '@tanstack/react-query';
+import { endChat } from '@/app/actions/end-chat';
+import { useToast } from '@/hooks/use-toast';
 
+interface EndChatResponse {
+  walletAddress: string;
+}
 
-export function useEndChat() {
-  const { toast } = useToast()
+export function useEndChat<T = EndChatResponse>() {
+  const { toast } = useToast();
 
-  return useMutation({
+  return useMutation<T, Error, void>({
     mutationFn: async () => {
-      const result = await endChat()
+      const result = await endChat();
+
       if (!result.success) {
-        throw new Error(result.error)
+        throw new Error(result.error || 'Failed to end chat');
       }
-      return result.data
+
+      return result.data as T;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast({
-        title: 'Chat Ended',
-        description: data?.message
-      })
+        title: "Chat Ended Successfully",
+        description: "Your chat session has been ended and points have been calculated.",
+        variant: "default",
+      });
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
-        variant: 'destructive',
-        title: 'Failed to end chat',
-        description: error.message
-      })
+        title: "Error",
+        description: error.message || "Failed to end chat. Please try again.",
+        variant: "destructive",
+      });
     }
-  })
+  });
 }

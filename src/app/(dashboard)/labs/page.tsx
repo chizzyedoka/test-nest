@@ -1,13 +1,13 @@
-import { decodeJWT } from "@/app/actions/login";
-import { LabsPageComponent } from "@/components/labs-page2";
+import { decodeJWT, isLoggedIn } from "@/app/actions/login";
+import { LabsPage } from "@/components/labs-page";
 import { redirect } from "next/navigation";
 
 export default async function LabsIndexPage() {
   const isAuth = await decodeJWT();
-
+  const isLogin = await isLoggedIn();
   if (!isAuth.isAuthenticated) {
     return redirect("/");
   }
 
-  return <LabsPageComponent />;
+  return <LabsPage isLogin={isLogin} />;
 }

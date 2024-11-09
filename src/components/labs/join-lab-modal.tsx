@@ -20,13 +20,16 @@ import { getContract, prepareContractCall } from "thirdweb";
 import { parseUnits } from "ethers";
 import { mainnet } from "thirdweb/chains";
 import { useLabRequirements } from "@/hooks/use-lab-requirements";
+import { FOOD_BOT_LAB_ID } from "@/config/food-bot-config";
+import { useState } from "react";
 
 interface JoinLabModalProps {
   isOpen: boolean;
   onClose: () => void;
   onJoinAsMiner: () => void;
   labType: "tutorial" | "regular";
-  labId: number;
+  labId: string;
+  isRegistering: boolean;
 }
 
 export function JoinLabModal({
@@ -35,12 +38,14 @@ export function JoinLabModal({
   onJoinAsMiner,
   labType,
   labId,
+  isRegistering,
 }: JoinLabModalProps) {
   const { data: labRequirements, isLoading: isLoadingRequirements } =
     useLabRequirements(labId.toString());
   const activeChain = useActiveWalletChain();
   const opmTokenAddress = "0x12E56851Ec22874520Dc4c7fa0A8a8d7DBa1BaC8";
   const activeAccount = useActiveAccount();
+  const [isJoining, setIsJoining] = useState(false);
 
   const {
     data: balance,
@@ -55,7 +60,7 @@ export function JoinLabModal({
 
   const canJoin =
     labType === "tutorial" ||
-    labId === 7 ||
+    labId === FOOD_BOT_LAB_ID ||
     (balance &&
       labRequirements &&
       balance.value >= labRequirements.miner_requirements.min_stake);
@@ -76,7 +81,8 @@ export function JoinLabModal({
   });
 
   const handleJoinAsMiner = async () => {
-    if (labType === "tutorial" || labId === 7) {
+    setIsJoining(true);
+    if (labType === "tutorial" || labId === FOOD_BOT_LAB_ID) {
       onJoinAsMiner();
       return;
     }
@@ -103,14 +109,13 @@ export function JoinLabModal({
       });
     } catch (error) {
       console.error("Failed to join lab:", error);
+    } finally {
+      setIsJoining(false);
     }
   };
-
-  console.log("====================================");
-  console.log(labId === 7);
-  console.log(labId);
-  console.log(canJoin);
-  console.log("====================================");
+  console.log("======isJoining==============================");
+  console.log(isJoining);
+  console.log("========isJoining============================");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -124,49 +129,53 @@ export function JoinLabModal({
           ) : isError ? (
             <p>Error loading balance</p>
           ) : (
-            <>
-              <p>
-                OPM Token Balance: {balance?.displayValue} {balance?.symbol}
-              </p>
-              <p>
-                Required Stake: {labRequirements?.miner_requirements.min_stake}{" "}
-                OPM
-              </p>
-            </>
+            labId !== FOOD_BOT_LAB_ID && (
+              <>
+                <p>
+                  OPM Token Balance: {balance?.displayValue} {balance?.symbol}
+                </p>
+                <p>
+                  Required Stake:{" "}
+                  {labRequirements?.miner_requirements.min_stake} OPM
+                </p>
+              </>
+            )
           )}
-          {!canJoin && (
+          {/* {!canJoin && (
             <p className='text-red-500'>
               Your balance is too low to join this lab. You need at least{" "}
               {labRequirements?.miner_requirements.min_stake} OPM.
             </p>
           )}
-          {canJoin && labType !== "tutorial" && labId !== 7 && (
+          {canJoin && labType !== "tutorial" && labId !== FOOD_BOT_LAB_ID && (
             <p className='text-green-500'>
               You will be charged{" "}
               {labRequirements?.miner_requirements.min_stake} OPM to join this
               lab.
             </p>
           )}
-          {(canJoin && labType === "tutorial") || labId === 7 ? (
+          {(canJoin && labType === "tutorial") || labId === FOOD_BOT_LAB_ID ? (
             <p className='text-green-500'>
               You will be charged 0 OPM to join this tutorial lab.
             </p>
-          ) : null}
+          ) : null} */}
 
-          {labType === "tutorial" || labId === 7 ? (
+          {labType === "tutorial" || labId === FOOD_BOT_LAB_ID ? (
             <Button
               className='w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300'
               onClick={handleJoinAsMiner}
-              disabled={isPending}>
-              {isPending ? "Processing..." : "Join as Miner"}
+              disabled={isPending || isJoining}>
+              {isPending || isJoining ? "Processing..." : "Join as Miner"}
             </Button>
           ) : null}
-          {labType !== "tutorial" && labId !== 7 ? (
+          {labType !== "tutorial" && labId !== FOOD_BOT_LAB_ID ? (
             <Button
               className='w-full bg-blue-600 hover:bg-blue-700 text-white transition-all duration-300'
               onClick={handleJoinAsMiner}
-              disabled={!canJoin || isPending}>
-              {isPending ? "Processing..." : "Join as Miner"}
+              disabled={!canJoin || isPending || isJoining}>
+              {isPending || isJoining || isRegistering
+                ? "Processing..."
+                : "Join as Miner"}
             </Button>
           ) : null}
           <Button

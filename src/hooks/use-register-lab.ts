@@ -13,8 +13,12 @@ export function useRegisterLab() {
   const { toast } = useToast();
 
   return useMutation<RegisterLabResponse, Error, RegisterLabRequest>({
-    mutationFn: registerForLab,
+    mutationFn: async (variables) => {
+
+      return registerForLab(variables);
+    },
     onError: (error) => {
+      console.error("Registration failed:", error);
       toast({
         variant: 'destructive',
         title: 'Registration Error',

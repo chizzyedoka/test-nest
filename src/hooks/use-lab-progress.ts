@@ -55,33 +55,45 @@ export const useLabProgressStore = create<LabProgressStore>()(
   )
 )
 
-export function useLabProgress(labId: string) {
-  const queryClient = useQueryClient()
-  const store = useLabProgressStore()
+interface Progress {
+  points: number;
+  attempts: number;
+  isJailbroken?: boolean;
+}
 
-  const { data: progress = DEFAULT_PROGRESS } = useQuery({
+interface ProgressUpdate {
+  points?: number;
+  attempts?: number;
+  isJailbroken?: boolean;
+}
+
+export function useLabProgress(labId: string) {
+  const queryClient = useQueryClient();
+  const store = useLabProgressStore();
+
+  const { data: progress = { points: 0, attempts: 0, isJailbroken: false } } = useQuery({
     queryKey: ['lab-progress', labId],
     queryFn: () => store.getProgress(labId),
     initialData: () => store.getProgress(labId),
     staleTime: Infinity,
-  })
+  });
 
-  const updateProgress = (data: Partial<LabProgress>) => {
-    store.updateProgress(labId, data)
-    queryClient.setQueryData(['lab-progress', labId], (old: LabProgress = DEFAULT_PROGRESS) => ({
+  const updateProgress = (update: ProgressUpdate) => {
+    store.updateProgress(labId, update);
+    queryClient.setQueryData(['lab-progress', labId], (old: Progress = { points: 0, attempts: 0 }) => ({
       ...old,
-      ...data,
-    }))
-  }
+      ...update,
+    }));
+  };
 
   const resetProgress = () => {
-    store.resetProgress(labId)
-    queryClient.setQueryData(['lab-progress', labId], DEFAULT_PROGRESS)
-  }
+    store.resetProgress(labId);
+    queryClient.setQueryData(['lab-progress', labId], { points: 0, attempts: 0, isJailbroken: false });
+  };
 
   return {
     progress,
     updateProgress,
     resetProgress,
-  }
+  };
 }

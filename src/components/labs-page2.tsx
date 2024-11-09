@@ -11,7 +11,7 @@ import { Lab } from "./labs/types";
 import { useActiveLabs } from "@/hooks/use-active-labs";
 function mapApiLabToLabType(apiLab: { labid: string; labname: string }): Lab {
   return {
-    id: parseInt(apiLab.labid), // Convert first part of UUID to number
+    id: apiLab.labid, // Convert first part of UUID to number
     name: apiLab.labname,
     participants: 789, // Default values for required fields
     gpuRequired: false,

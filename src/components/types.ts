@@ -1,5 +1,5 @@
 export interface Lab {
-  id: number;
+  id: string;
   name: string;
   participants: number;
   gpuRequired: boolean;

@@ -6,7 +6,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { headers } from 'next/headers';
 import { isAuthenticated } from '@/lib/auth-service';
 
-const API_URL = 'http://3.255.186.112/api/v1';
+const API_URL = process.env.API_PLATFORM_URL
 
 const RegisterLabSchema = z.object({
   labId: z.string(),
@@ -15,13 +15,22 @@ const RegisterLabSchema = z.object({
 
 export type RegisterLabRequest = z.infer<typeof RegisterLabSchema>;
 
-export async function registerForLab(params: RegisterLabRequest) {
+interface RegisterLabResponse {
+  success: boolean;
+  data?: any;
+  error?: string;
+}
+
+export async function registerForLab(params: RegisterLabRequest): Promise<RegisterLabResponse> {
   try {
     const validatedInput = RegisterLabSchema.parse(params);
     const authToken = cookies().get('auth_token')?.value;
 
     if (!authToken || !(await isAuthenticated())) {
-      throw new Error('Authentication required');
+      return {
+        success: false,
+        error: 'Authentication required'
+      };
     }
 
     // Rate limiting
@@ -30,43 +39,58 @@ export async function registerForLab(params: RegisterLabRequest) {
     const { success: rateLimitSuccess } = await rateLimit(identifier);
 
     if (!rateLimitSuccess) {
-      throw new Error('Too many requests. Please try again later.');
+      return {
+        success: false,
+        error: 'Too many requests. Please try again later.'
+      };
     }
 
-    const myHeaders = new Headers();
-    myHeaders.append("accept", "application/json");
-    myHeaders.append("Authorization", `Bearer ${authToken}`);
-
-    const requestOptions = {
-      method: "POST",
-      headers: myHeaders,
-      redirect: "follow"
-    };
-
     const response = await fetch(
-      `${API_URL}/labs/labs/${validatedInput.labId}/${validatedInput.roleType}/register`,
+      `${API_URL}/api/v1/labs/labs/${validatedInput.labId}/${validatedInput.roleType}/register`,
       {
         method: "POST",
-        headers: myHeaders,
-        redirect: "follow" as RequestRedirect
+        headers: {
+          "accept": "application/json",
+          "Authorization": `Bearer ${authToken}`,
+          "Content-Type": "application/json"
+        },
+        // Add the request body with callback URL
+        body: JSON.stringify({
+          callback_url: `${process.env.NEXT_PUBLIC_APP_URL}/api/lab-callback` // Make sure to set this env variable
+        })
       }
     );
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
-    }
+    const data = await response.json();
 
-    const result = await response.text();
-    console.log(result);
+    if (!response.ok) {
+      console.log('=============registerLab Error=======================');
+      console.log('Status:', response.status);
+      console.log('Error Data:', data);
+      console.log('Request URL:', `${API_URL}/labs/labs/${validatedInput.labId}/${validatedInput.roleType}/register`);
+      console.log('====================================================');
+
+      return {
+        success: false,
+        error: data.detail || data.message || `Registration failed with status: ${response.status}`
+      };
+    }
 
     return {
       success: true,
-      data: result
+      data
     };
 
   } catch (error) {
-    console.error(error);
+    console.error('Registration error:', error);
+
+    if (error instanceof z.ZodError) {
+      return {
+        success: false,
+        error: 'Invalid input parameters'
+      };
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unexpected error occurred'

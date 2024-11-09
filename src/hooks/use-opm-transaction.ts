@@ -1,6 +1,8 @@
 import { useSendTransaction } from "thirdweb/react";
-import { prepareContractCall } from "thirdweb";
+import { getContract, prepareContractCall } from "thirdweb";
 import { parseUnits } from "ethers";
+import { mainnet } from 'thirdweb/chains';
+import { client } from '../lib/client';
 
 interface UseOpmTransactionProps {
   onSuccess?: () => void;
@@ -11,16 +13,20 @@ export function useOpmTransaction({ onSuccess, onError }: UseOpmTransactionProps
   const opmTokenAddress = "0x52662717e448be36Cb54588499D5A8328BD95292";
   const treasuryAddress = "YOUR_TREASURY_ADDRESS";
 
-  const { mutate: sendTransaction, isLoading } = useSendTransaction();
+  const { mutate: sendTransaction, isPending: isLoading } = useSendTransaction();
+
+  const contract = getContract({
+    address: opmTokenAddress,
+    chain: mainnet,
+    client,
+  });
+
 
   const debitOpmTokens = async (amount: number) => {
     try {
       const transaction = prepareContractCall({
-        contract: {
-          address: opmTokenAddress,
-          abi: ["function transfer(address to, uint256 amount)"],
-        },
-        method: "transfer",
+        contract,
+        method: "function transfer(address to, uint256 value)",
         params: [
           treasuryAddress,
           parseUnits(amount.toString(), 18) // Assuming 18 decimals

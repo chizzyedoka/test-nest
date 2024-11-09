@@ -57,16 +57,22 @@ export function useChatHistory(labId: string) {
   })
 
   const addMessage = (message: Message) => {
-    store.addMessage(labId, message)
-    queryClient.setQueryData(['chat-history', labId], (old: Message[] = []) => [
-      ...old,
-      message,
-    ])
+    const isDuplicate = messages.some(
+      (m) => m.role === message.role && m.content === message.content
+    );
+
+    if (!isDuplicate) {
+      store.addMessage(labId, message);
+      queryClient.setQueryData(['chat-history', labId], (old: Message[] = []) => [
+        ...old,
+        message,
+      ]);
+    }
   }
 
   const clearHistory = () => {
-    store.clearHistory(labId)
-    queryClient.setQueryData(['chat-history', labId], [])
+    store.clearHistory(labId);
+    queryClient.setQueryData(['chat-history', labId], []);
   }
 
   return {
