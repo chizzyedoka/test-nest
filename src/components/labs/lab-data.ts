@@ -2,7 +2,7 @@ import { Lab } from "./types";
 
 export const labsData: Lab[] = [
   {
-    id: 7,
+    id: "7",
     name: "Food Bot Jailbreak Tutorial",
     participants: 789,
     gpuRequired: false,
@@ -16,7 +16,7 @@ export const labsData: Lab[] = [
     category: 'Jailbreak'
   },
   {
-    id: 1,
+    id: "1",
     name: "GPT-4 Jailbreak",
     participants: 1234,
     gpuRequired: true,
@@ -28,7 +28,7 @@ export const labsData: Lab[] = [
     category: 'Jailbreak'
   },
   {
-    id: 2,
+    id: "2",
     name: "DALL-E Prompt Optimization",
     participants: 567,
     gpuRequired: false,
@@ -40,7 +40,7 @@ export const labsData: Lab[] = [
     category: 'Fine-tuning'
   },
   {
-    id: 3,
+    id: "3",
     name: "LLaMA Fine-tuning",
     participants: 890,
     gpuRequired: true,
@@ -52,7 +52,7 @@ export const labsData: Lab[] = [
     category: 'Fine-tuning'
   },
   {
-    id: 4,
+    id: "4",
     name: "Stable Diffusion Tweaking",
     participants: 2345,
     gpuRequired: true,
@@ -64,7 +64,7 @@ export const labsData: Lab[] = [
     category: 'Generation'
   },
   {
-    id: 5,
+    id: "5",
     name: "ChatGPT Persona Creation",
     participants: 3456,
     gpuRequired: false,
@@ -76,7 +76,7 @@ export const labsData: Lab[] = [
     category: 'Jailbreak'
   },
   {
-    id: 6,
+    id: "6",
     name: "Code Generation Improvement",
     participants: 789,
     gpuRequired: false,
